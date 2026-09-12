@@ -1,0 +1,86 @@
+"""
+main.py — FastAPI backend exposing our assistant + analytics as a REST API.
+
+Two kinds of endpoints:
+1. POST /ask — the AI Q&A endpoint (natural language -> grounded explanation)
+2. GET /analytics/* — direct chart-data endpoints, so the frontend can render
+default dashboard charts WITHOUT going through the LLM at all. This is a
+deliberate design choice: charts that don't need explanation shouldn't
+cost an API call or introduce LLM latency — only the "why" question needs AI.
+"""
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+import analytics
+from assistant import ask as ask_assistant
+
+app = FastAPI(title="Retail BI Assistant API")
+
+# Allow the frontend (running on a different port/file) to call this API.
+# In production you'd restrict this to your actual frontend's domain.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class QuestionRequest(BaseModel):
+    question: str
+
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "message": "Retail BI Assistant API is running"}
+
+
+@app.post("/ask")
+def ask_question(req: QuestionRequest):
+    """The main AI endpoint: send a natural language question, get back
+    a grounded explanation backed by real analytics function calls."""
+    if not req.question or not req.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    try:
+        result = ask_assistant(req.question)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------- Direct chart-data endpoints (no LLM, instant, free) ----------
+
+@app.get("/analytics/monthly-trend")
+def get_monthly_trend(category: str | None = None, region: str | None = None):
+    return analytics.monthly_trend(category=category, region=region)
+
+
+@app.get("/analytics/category-performance")
+def get_category_performance(quarter: str | None = None):
+    return analytics.category_performance(quarter=quarter)
+
+
+@app.get("/analytics/region-revenue")
+def get_region_revenue(recent_months: int = 2):
+    return analytics.region_revenue_change(recent_months=recent_months)
+
+
+@app.get("/analytics/profitability")
+def get_profitability():
+    return analytics.profitability_analysis()
+
+
+@app.get("/analytics/segment-profitability")
+def get_segment_profitability():
+    return analytics.segment_profitability()
+
+
+@app.get("/analytics/top-bottom-subcategories")
+def get_top_bottom(n: int = 3):
+    return analytics.top_bottom_subcategories(n=n)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
