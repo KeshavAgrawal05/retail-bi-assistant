@@ -1,16 +1,10 @@
 """
 main.py — FastAPI backend exposing our assistant + analytics as a REST API.
-
-Two kinds of endpoints:
-1. POST /ask — the AI Q&A endpoint (natural language -> grounded explanation)
-2. GET /analytics/* — direct chart-data endpoints, so the frontend can render
-default dashboard charts WITHOUT going through the LLM at all. This is a
-deliberate design choice: charts that don't need explanation shouldn't
-cost an API call or introduce LLM latency — only the "why" question needs AI.
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import traceback
 
 import analytics
 from assistant import ask as ask_assistant
@@ -46,6 +40,10 @@ def ask_question(req: QuestionRequest):
             result = ask_local(req.question)
         return result
     except Exception as e:
+        print("=" * 70)
+        print("FULL ERROR TRACEBACK:")
+        traceback.print_exc()
+        print("=" * 70)
         raise HTTPException(status_code=500, detail=str(e))
 
 
