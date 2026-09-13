@@ -9,31 +9,19 @@ A full-stack business intelligence assistant that answers plain-English question
 Most student ML/AI projects are either a standalone model (no product around it) or a chatbot with no real data grounding. This project combines both: a real pandas-based analytics engine, a RAG context layer, and an LLM that can only speak using numbers it actually computed — never hallucinated. It also handles a real-world constraint most student projects ignore entirely: what happens when your API quota runs out.
 
 ## Architecture
-┌─────────────────┐
-│ React Frontend │ ───▶ │ FastAPI Backend │ ───▶ │ Gemini 3.6 │
-│ (index.html) │ │ (main.py) │ │ Flash (primary) │
-└─────────────────┘ └────────┬─────────┘ └────────┬────────┘
-│ │
-│ falls back if quota │ decides which
-│ exceeded │ tool to call
-▼ │
-┌──────────────────┐ │
-│ Qwen3 8B via │ │
-│ Ollama (local, │ │
-│ unlimited fallback) │ │
-└────────┬─────────┘ │
-│ │
-▼ ▼
-┌──────────────────────────────────────┐
-│ analytics.py (ground truth: │
-│ real pandas math, never guessed) │
-└──────────────────────────────────────┘
-▲
-┌──────────────────┐
-│ vectorstore.py │
-│ (RAG context via │
-│ ChromaDB, local) │
-└──────────────────┘
+Frontend (React) --> FastAPI Backend --> Gemini 3.6 Flash (primary LLM)
+| |
+| falls back if | decides which
+| quota exceeded | tool to call
+v |
+Qwen3 8B via Ollama |
+(local, unlimited fallback) |
+| |
+v v
+analytics.py (ground truth: real pandas math, never guessed)
+^
+|
+vectorstore.py (RAG context via ChromaDB, local)
 
 **The core design principle:** neither LLM is ever allowed to calculate a number itself. Every figure comes from `analytics.py`'s pandas functions. Each model's only job is to decide which function to call (via native function/tool calling) and explain the result in plain English.
 
