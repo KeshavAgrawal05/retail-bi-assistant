@@ -18,8 +18,6 @@ from ollama_assistant import ask_local
 
 app = FastAPI(title="Retail BI Assistant API")
 
-# Allow the frontend (running on a different port/file) to call this API.
-# In production you'd restrict this to your actual frontend's domain.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,7 +39,7 @@ def health_check():
 def ask_question(req: QuestionRequest):
     if not req.question or not req.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
-    try:s
+    try:
         result = ask_assistant(req.question)
         if result.get("quota_exceeded"):
             print("Gemini quota exceeded, falling back to local Ollama model...")
@@ -50,8 +48,6 @@ def ask_question(req: QuestionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ---------- Direct chart-data endpoints (no LLM, instant, free) ----------
 
 @app.get("/analytics/monthly-trend")
 def get_monthly_trend(category: str | None = None, region: str | None = None):
