@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 import analytics
 from assistant import ask as ask_assistant
+from ollama_assistant import ask_local
 
 app = FastAPI(title="Retail BI Assistant API")
 
@@ -38,12 +39,13 @@ def health_check():
 
 @app.post("/ask")
 def ask_question(req: QuestionRequest):
-    """The main AI endpoint: send a natural language question, get back
-    a grounded explanation backed by real analytics function calls."""
     if not req.question or not req.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
-    try:
+    try:s
         result = ask_assistant(req.question)
+        if result.get("quota_exceeded"):
+            print("Gemini quota exceeded, falling back to local Ollama model...")
+            result = ask_local(req.question)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
